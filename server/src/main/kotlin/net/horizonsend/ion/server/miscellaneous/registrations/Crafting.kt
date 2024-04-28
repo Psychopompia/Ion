@@ -41,10 +41,13 @@ import org.bukkit.Material.BLACK_WOOL
 import org.bukkit.Material.BLACKSTONE
 import org.bukkit.Material.BLUE_WOOL
 import org.bukkit.Material.BROWN_WOOL
+import org.bukkit.Material.COAL
+import org.bukkit.Material.COBBLED_DEEPSLATE
 import org.bukkit.Material.COPPER_BLOCK
 import org.bukkit.Material.COPPER_INGOT
 import org.bukkit.Material.CYAN_WOOL
 import org.bukkit.Material.DARK_PRISMARINE
+import org.bukkit.Material.DEEPSLATE_COAL_ORE
 import org.bukkit.Material.DIAMOND_BLOCK
 import org.bukkit.Material.EMERALD_BLOCK
 import org.bukkit.Material.GILDED_BLACKSTONE
@@ -52,7 +55,6 @@ import org.bukkit.Material.GLASS
 import org.bukkit.Material.GLASS_PANE
 import org.bukkit.Material.GOLD_BLOCK
 import org.bukkit.Material.GOLD_INGOT
-import org.bukkit.Material.GOLD_NUGGET
 import org.bukkit.Material.GRAY_WOOL
 import org.bukkit.Material.GREEN_DYE
 import org.bukkit.Material.GREEN_WOOL
@@ -68,6 +70,8 @@ import org.bukkit.Material.MAGENTA_WOOL
 import org.bukkit.Material.MELON
 import org.bukkit.Material.MOSS_BLOCK
 import org.bukkit.Material.MOSS_CARPET
+import org.bukkit.Material.NETHERRACK
+import org.bukkit.Material.NETHER_GOLD_ORE
 import org.bukkit.Material.NETHER_WART
 import org.bukkit.Material.NETHER_WART_BLOCK
 import org.bukkit.Material.OAK_LOG
@@ -91,7 +95,6 @@ import org.bukkit.Material.SLIME_BALL
 import org.bukkit.Material.SNIFFER_EGG
 import org.bukkit.Material.STICK
 import org.bukkit.Material.STRING
-import org.bukkit.Material.TRIPWIRE
 import org.bukkit.Material.TURTLE_EGG
 import org.bukkit.Material.VERDANT_FROGLIGHT
 import org.bukkit.Material.WHITE_WOOL
@@ -173,13 +176,31 @@ object Crafting : IonServerComponent() {
 			setIngredient('p', PAPER)
 		}
 
+		// Nether Gold Ore
+		itemStackShapeRecipe("nether_gold_ore", ItemStack(NETHER_GOLD_ORE, 4)) {
+			shape("gng", "ngn", "gng")
+
+			setIngredient('g', GOLD_INGOT)
+			setIngredient('n', NETHERRACK)
+		}
+
 		// Gilded Blackstone
-		shapedRecipe("gilded_blackstone", GILDED_BLACKSTONE) {
+		itemStackShapeRecipe("gilded_blackstone", ItemStack(GILDED_BLACKSTONE, 4)) {
 			shape("gbg", "bgb", "gbg")
 
-			setIngredient('g', GOLD_NUGGET)
+			setIngredient('g', GOLD_INGOT)
 			setIngredient('b', BLACKSTONE)
 		}
+
+		// Deepslate Coal Ore
+		itemStackShapeRecipe("deepslate_coal_ore", ItemStack(DEEPSLATE_COAL_ORE, 4)) {
+			shape("cdc", "dcd", "cdc")
+
+			setIngredient('c', COAL)
+			setIngredient('d', COBBLED_DEEPSLATE)
+		}
+
+		//
 
 		// Sniffer Egg
 		shapedRecipe("sniffer_egg", SNIFFER_EGG) {
@@ -427,7 +448,7 @@ object Crafting : IonServerComponent() {
 
 		// Detonator Crafting
 		itemStackShapeRecipe("detonator", DETONATOR.constructItemStack()) {
-			shape(" r ", "tut", " t ",)
+			shape(" r ", "tut", " t ")
 
 			setIngredient('r', REDSTONE)
 			setIngredient('t', TITANIUM_INGOT.constructItemStack())
