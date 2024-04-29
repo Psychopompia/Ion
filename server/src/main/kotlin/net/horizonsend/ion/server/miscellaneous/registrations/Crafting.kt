@@ -41,11 +41,23 @@ import org.bukkit.Material.BLACK_WOOL
 import org.bukkit.Material.BLACKSTONE
 import org.bukkit.Material.BLUE_WOOL
 import org.bukkit.Material.BROWN_WOOL
+import org.bukkit.Material.COAL
 import org.bukkit.Material.COPPER_BLOCK
 import org.bukkit.Material.COPPER_INGOT
+import org.bukkit.Material.COBBLED_DEEPSLATE
 import org.bukkit.Material.CYAN_WOOL
 import org.bukkit.Material.DARK_PRISMARINE
+import org.bukkit.Material.DIAMOND
 import org.bukkit.Material.DIAMOND_BLOCK
+import org.bukkit.Material.DEEPSLATE_COAL_ORE
+import org.bukkit.Material.DEEPSLATE_COPPER_ORE
+import org.bukkit.Material.DEEPSLATE_LAPIS_ORE
+import org.bukkit.Material.DEEPSLATE_IRON_ORE
+import org.bukkit.Material.DEEPSLATE_GOLD_ORE
+import org.bukkit.Material.DEEPSLATE_REDSTONE_ORE
+import org.bukkit.Material.DEEPSLATE_DIAMOND_ORE
+import org.bukkit.Material.DEEPSLATE_EMERALD_ORE
+import org.bukkit.Material.EMERALD
 import org.bukkit.Material.EMERALD_BLOCK
 import org.bukkit.Material.GILDED_BLACKSTONE
 import org.bukkit.Material.GLASS
@@ -59,6 +71,7 @@ import org.bukkit.Material.HONEYCOMB
 import org.bukkit.Material.IRON_BLOCK
 import org.bukkit.Material.IRON_TRAPDOOR
 import org.bukkit.Material.LAPIS_BLOCK
+import org.bukkit.Material.LAPIS_LAZULI
 import org.bukkit.Material.LEATHER
 import org.bukkit.Material.LIGHT_BLUE_WOOL
 import org.bukkit.Material.LIGHT_GRAY_WOOL
@@ -77,6 +90,8 @@ import org.bukkit.Material.ORANGE_WOOL
 import org.bukkit.Material.PEARLESCENT_FROGLIGHT
 import org.bukkit.Material.PINK_WOOL
 import org.bukkit.Material.RAW_GOLD
+import org.bukkit.Material.RAW_COPPER_BLOCK
+import org.bukkit.Material.RAW_IRON
 import org.bukkit.Material.PRISMARINE
 import org.bukkit.Material.PRISMARINE_BRICKS
 import org.bukkit.Material.PRISMARINE_CRYSTALS
@@ -188,6 +203,70 @@ object Crafting : IonServerComponent() {
 
 			setIngredient('g', RAW_GOLD)
 			setIngredient('b', BLACKSTONE)
+		}
+
+		// Deepslate Coal Ore
+		itemStackShapeRecipe("deepslate_coal_ore", ItemStack(DEEPSLATE_COAL_ORE, 4)) {
+			shape("cdc", "dcd", "cdc")
+
+			setIngredient('c', COAL)
+			setIngredient('d', COBBLED_DEEPSLATE)
+		}
+
+		// Deepslate Copper Ore
+		itemStackShapeRecipe("deepslate_copper_ore", ItemStack(DEEPSLATE_COPPER_ORE, 4)) {
+			shape("dcd", "dcd", "dcd")
+
+			setIngredient('c', RAW_COPPER_BLOCK)
+			setIngredient('d', COBBLED_DEEPSLATE)
+		}
+
+		// Deepslate Lapis Ore
+		itemStackShapeRecipe("deepslate_lapis_ore", ItemStack(DEEPSLATE_LAPIS_ORE, 4)) {
+			shape("dld", "dld", "dld")
+
+			setIngredient('l', LAPIS_LAZULI)
+			setIngredient('d', COBBLED_DEEPSLATE)
+		}
+
+		// Deepslate Iron Ore
+		itemStackShapeRecipe("deepslate_iron_ore", ItemStack(DEEPSLATE_IRON_ORE, 4)) {
+			shape("idi", "did", "idi")
+
+			setIngredient('i', RAW_IRON)
+			setIngredient('d', COBBLED_DEEPSLATE)
+		}
+
+		// Deepslate Gold Ore
+		itemStackShapeRecipe("deepslate_gold_ore", ItemStack(DEEPSLATE_GOLD_ORE, 4)) {
+			shape("gdg", "dgd", "gdg")
+
+			setIngredient('g', RAW_GOLD)
+			setIngredient('d', COBBLED_DEEPSLATE)
+		}
+
+		// Deepslate Redstone Ore
+		itemStackShapeRecipe("deepslate_redstone_ore", ItemStack(DEEPSLATE_REDSTONE_ORE, 4)) {
+			shape("drd", "drd", "drd")
+
+			setIngredient('r', REDSTONE_BLOCK)
+			setIngredient('d', COBBLED_DEEPSLATE)
+		}
+
+		// Deepslate Diamond Ore
+		itemStackShapeRecipe("deepslate_diamond_ore", ItemStack(DEEPSLATE_DIAMOND_ORE, 4)) {
+			shape("dad", "ada", "dad")
+
+			setIngredient('a', DIAMOND)
+			setIngredient('d', COBBLED_DEEPSLATE)
+		}
+
+		// Deepslate Emerald Ore
+		itemStackShapeRecipe("deepslate_emerald_ore", ItemStack(DEEPSLATE_EMERALD_ORE, 4)) {
+			shape("ded", "ede", "ded")
+
+			setIngredient('e', EMERALD)
+			setIngredient('d', COBBLED_DEEPSLATE)
 		}
 
 		// Sniffer Egg
