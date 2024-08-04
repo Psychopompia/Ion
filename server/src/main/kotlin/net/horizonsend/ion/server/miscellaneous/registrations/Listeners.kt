@@ -3,16 +3,13 @@ package net.horizonsend.ion.server.miscellaneous.registrations
 import net.horizonsend.ion.server.features.achievements.AchievementListeners
 import net.horizonsend.ion.server.features.client.VoidNetwork
 import net.horizonsend.ion.server.features.client.networking.packets.WorldPacket
-import net.horizonsend.ion.server.features.customblocks.CustomBlockListeners
-import net.horizonsend.ion.server.features.customitems.CustomItemListeners
-import net.horizonsend.ion.server.features.customitems.blasters.BlasterListeners
+import net.horizonsend.ion.server.features.custom.ItemConverters
+import net.horizonsend.ion.server.features.custom.blocks.CustomBlockListeners
+import net.horizonsend.ion.server.features.custom.items.blasters.BlasterListeners
+import net.horizonsend.ion.server.features.custom.items.mods.ToolModMenu
 import net.horizonsend.ion.server.features.machine.CryoPods
 import net.horizonsend.ion.server.features.misc.HyperspaceBeaconManager
 import net.horizonsend.ion.server.features.multiblock.misc.TractorBeamMultiblock
-import net.horizonsend.ion.server.features.screens.listeners.InventoryClickListener
-import net.horizonsend.ion.server.features.screens.listeners.InventoryCloseListener
-import net.horizonsend.ion.server.features.screens.listeners.InventoryDragListener
-import net.horizonsend.ion.server.features.screens.listeners.InventoryMoveItemListener
 import net.horizonsend.ion.server.features.space.encounters.EncounterManager
 import net.horizonsend.ion.server.features.space.generation.SpaceGenerationManager
 import net.horizonsend.ion.server.features.waypoint.WaypointListeners
@@ -23,7 +20,6 @@ import net.horizonsend.ion.server.listener.fixers.GameplayTweaksListeners
 import net.horizonsend.ion.server.listener.gear.DetonatorListener
 import net.horizonsend.ion.server.listener.gear.DoubleJumpListener
 import net.horizonsend.ion.server.listener.gear.PowerArmorListener
-import net.horizonsend.ion.server.listener.gear.PowerToolListener
 import net.horizonsend.ion.server.listener.gear.SwordListener
 import net.horizonsend.ion.server.listener.misc.BlockListener
 import net.horizonsend.ion.server.listener.misc.BowHitListener
@@ -37,6 +33,7 @@ import net.horizonsend.ion.server.listener.misc.JoinLeaveListener
 import net.horizonsend.ion.server.listener.misc.MiscListeners
 import net.horizonsend.ion.server.listener.misc.PlayerDeathListener
 import net.horizonsend.ion.server.listener.misc.ProtectionListener
+import net.horizonsend.ion.server.listener.misc.RecipeModifications
 import net.horizonsend.ion.server.listener.misc.ResourcePackListener
 import net.horizonsend.ion.server.listener.nations.FriendlyFireListener
 import net.horizonsend.ion.server.listener.nations.MovementListener
@@ -61,22 +58,18 @@ val listeners: List<Listener> = listOf(
 	DetonatorListener,
 	DoubleJumpListener,
 	PowerArmorListener,
-	PowerToolListener,
 	SwordListener,
 
 	// Ion
 	BlasterListeners(),
 	CancelListeners(),
-	CustomItemListeners(),
-	CustomBlockListeners(),
+	net.horizonsend.ion.server.features.custom.items.CustomItemListeners(),
+	CustomBlockListeners,
+	ItemConverters,
 	EdenFixer9000(),
 	GameplayTweaksListeners(),
 	HeadListener(),
 	HyperspaceBeaconManager,
-	InventoryClickListener(),
-	InventoryCloseListener(),
-	InventoryDragListener(),
-	InventoryMoveItemListener(),
 	IonWorld,
 	MiscListeners(),
 	SpaceGenerationManager,
@@ -87,6 +80,8 @@ val listeners: List<Listener> = listOf(
 	BiomeFixer9001(),
 	TractorBeamMultiblock,
 	PlayerDeathListener,
+	ToolModMenu,
+	RecipeModifications,
 
 	// Achievement Listeners
 	AchievementListeners(),

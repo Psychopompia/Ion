@@ -41,6 +41,7 @@ val Material.isDoor: Boolean get() = DOOR_TYPES.contains(this)
 val TRAPDOOR_TYPES = getMatchingMaterials { it.name.endsWith("_TRAPDOOR") }
 val Material.isTrapdoor: Boolean get() = TRAPDOOR_TYPES.contains(this)
 
+val Material.isSeaLantern: Boolean get() = this == Material.SEA_LANTERN
 
 val PRESSURE_PLATE_TYPES = getMatchingMaterials { it.name.endsWith("_PRESSURE_PLATE") }
 
@@ -54,8 +55,10 @@ val LEAF_TYPES = getMatchingMaterials { it.name.endsWith("_LEAVES") }
 val Material.isLeaves: Boolean get() = LEAF_TYPES.contains(this)
 
 val LOG_TYPES = getMatchingMaterials { it.name.endsWith("_LOG") }
+val Material.isLog: Boolean get() = LOG_TYPES.contains(this)
 
 val WOOD_TYPES = getMatchingMaterials { it.name.endsWith("_WOOD") }
+val Material.isWood: Boolean get() = WOOD_TYPES.contains(this)
 
 val WALL_SIGN_TYPES = getMatchingMaterials { it.name.endsWith("_WALL_SIGN") }
 val Material.isWallSign: Boolean get() = WALL_SIGN_TYPES.contains(this)
@@ -98,6 +101,9 @@ val BED_TYPES = getMatchingMaterials { it.name.endsWith("_BED") }
 val Material.isBed: Boolean get() = BED_TYPES.contains(this)
 
 val FENCE_TYPES = getMatchingMaterials { it.name.endsWith("_FENCE") }
+val Material.isFence: Boolean get() = FENCE_TYPES.contains(this)
+
+val FENCE_GATE_TYPES = getMatchingMaterials { it.name.endsWith("_FENCE_GATE") }
 
 val WALL_TYPES = getMatchingMaterials { it.name.endsWith("_WALL") }
 val Material.isWall: Boolean get() = WALL_TYPES.contains(this)
@@ -109,3 +115,5 @@ val Material.isFroglight: Boolean get() = FROGLIGHT_TYPES.contains(this)
 
 val ANVIL_TYPES = getMatchingMaterials { it.name.endsWith("ANVIL") }
 val Material.isAnvil: Boolean get() = ANVIL_TYPES.contains(this)
+
+val SAPLING_TYPES = getMatchingMaterials { it.name.endsWith("_SAPLING") }

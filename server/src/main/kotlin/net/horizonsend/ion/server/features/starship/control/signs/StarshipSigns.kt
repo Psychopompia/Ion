@@ -1,5 +1,7 @@
 package net.horizonsend.ion.server.features.starship.control.signs
 
+import net.horizonsend.ion.common.utils.text.plainText
+import net.horizonsend.ion.server.command.starship.MiscStarshipCommands
 import net.horizonsend.ion.server.features.starship.BoardingRamps
 import net.horizonsend.ion.server.features.starship.active.ActiveControlledStarship
 import net.horizonsend.ion.server.features.starship.active.ActiveStarships
@@ -118,6 +120,17 @@ enum class StarshipSigns(val undetectedText: String, val baseLines: Array<String
 
 		override fun onClick(player: Player, sign: Sign, rightClick: Boolean) {
 			BoardingRamps.toggle(player, sign)
+		}
+	},
+	DIRECT_CONTROL("[directcontrol]", arrayOf("&2Direct".colorize(), "&8Control".colorize(), null, null)) {
+		override fun onClick(player: Player, sign: Sign, rightClick: Boolean) {
+			MiscStarshipCommands.onDirectControl(player)
+		}
+	},
+	// Because I couldn't figure out how to make the original enum accept a [dc]
+	DIRECT_CONTROL_2("[dc]", arrayOf("&2Direct".colorize(), "&8Control".colorize(), null, null)) {
+		override fun onClick(player: Player, sign: Sign, rightClick: Boolean) {
+			MiscStarshipCommands.onDirectControl(player)
 		}
 	};
 

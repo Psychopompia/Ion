@@ -5,10 +5,12 @@ import net.horizonsend.ion.common.database.Oid
 import net.horizonsend.ion.common.database.schema.starships.StarshipData
 import net.horizonsend.ion.common.extensions.serverError
 import net.horizonsend.ion.common.utils.text.MessageFactory
+import net.horizonsend.ion.common.utils.text.bracketed
+import net.horizonsend.ion.common.utils.text.colors.HEColorScheme
+import net.horizonsend.ion.common.utils.text.ofChildren
 import net.horizonsend.ion.common.utils.text.plainText
+import net.horizonsend.ion.server.IonServer
 import net.horizonsend.ion.server.configuration.ServerConfiguration
-import net.horizonsend.ion.server.features.starship.DeactivatedPlayerStarships
-import net.horizonsend.ion.server.features.starship.PilotedStarships
 import net.horizonsend.ion.server.features.starship.PilotedStarships.isPiloted
 import net.horizonsend.ion.server.features.starship.StarshipType
 import net.horizonsend.ion.server.features.starship.control.controllers.Controller
@@ -22,7 +24,6 @@ import net.horizonsend.ion.server.features.starship.event.movement.StarshipRotat
 import net.horizonsend.ion.server.features.starship.event.movement.StarshipTranslateEvent
 import net.horizonsend.ion.server.features.starship.modules.RewardsProvider
 import net.horizonsend.ion.server.features.starship.modules.SinkMessageFactory
-import net.horizonsend.ion.server.features.starship.modules.StandardRewardsProvider
 import net.horizonsend.ion.server.features.starship.movement.RotationMovement
 import net.horizonsend.ion.server.features.starship.movement.StarshipBlockedException
 import net.horizonsend.ion.server.features.starship.movement.StarshipMovement
@@ -35,8 +36,11 @@ import net.horizonsend.ion.server.miscellaneous.utils.bukkitWorld
 import net.horizonsend.ion.server.miscellaneous.utils.leftFace
 import net.horizonsend.ion.server.miscellaneous.utils.rightFace
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.Component.space
 import net.kyori.adventure.text.Component.text
+import net.kyori.adventure.text.event.ClickEvent
 import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.text.format.NamedTextColor.RED
 import net.kyori.adventure.text.minimessage.MiniMessage.miniMessage
 import net.starlegacy.feature.starship.active.ActiveStarshipHitbox
 import org.bukkit.Bukkit
@@ -46,6 +50,7 @@ import org.bukkit.boss.BossBar
 import org.bukkit.entity.Player
 import org.bukkit.util.Vector
 import java.lang.Math.cbrt
+import java.util.LinkedList
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.LinkedBlockingQueue
@@ -70,7 +75,7 @@ class ActiveControlledStarship(
 
 	override val type: StarshipType = data.starshipType.actualType
 	override val balancing = type.balancingSupplier.get()
-	override var rewardsProvider: RewardsProvider = StandardRewardsProvider(this)
+	override val rewardsProviders: LinkedList<RewardsProvider> = LinkedList<RewardsProvider>()
 	override var sinkMessageFactory: MessageFactory = SinkMessageFactory(this)
 
 	override val interdictionRange: Int = balancing.interdictionRange
@@ -84,7 +89,7 @@ class ActiveControlledStarship(
 	data class PendingRotation(val clockwise: Boolean)
 
 	val pendingRotations = LinkedBlockingQueue<PendingRotation>()
-	private val rotationTime get() = TimeUnit.MILLISECONDS.toNanos(250L + initialBlockCount / 40L)
+	private val rotationTime get() = TimeUnit.MILLISECONDS.toNanos(50L + initialBlockCount / 30L)
 
 	fun getTargetForward(): BlockFace {
 		val rotation = pendingRotations.peek()
@@ -148,6 +153,7 @@ class ActiveControlledStarship(
 			val result = executeMovement(movement, pilot)
 			future.complete(result)
 			controller.onMove(movement)
+			subsystems.forEach { runCatching { it.onMovement(movement) } }
 		}
 
 		return future
@@ -168,10 +174,17 @@ class ActiveControlledStarship(
 			lastBlockedTime = System.currentTimeMillis()
 			return false
 		} catch (e: Throwable) {
-			serverError("There was an unhandled exception during movement, releasing to prevent damage")
+			serverError("There was an unhandled exception during movement! Please forward this to staff")
+			val stackTrace = "$e\n" + e.stackTrace.joinToString(separator = "\n")
 
-			PilotedStarships.unpilot(this)
-			DeactivatedPlayerStarships.deactivateAsync(this)
+			val exceptionMessage = ofChildren(text(e.message ?: "No message provided", RED), space(), bracketed(text("Hover for info", HEColorScheme.HE_LIGHT_GRAY)))
+				.hoverEvent(text(stackTrace))
+				.clickEvent(ClickEvent.copyToClipboard(stackTrace))
+
+			sendMessage(exceptionMessage)
+
+			IonServer.slF4JLogger.error(e.message)
+			e.printStackTrace()
 
 			return false
 		}
@@ -216,7 +229,9 @@ class ActiveControlledStarship(
 			val player: Player = (controller as? PlayerController)?.player ?: return
 
 			player.walkSpeed = 0.009f
-			directControlCenter = player.location.toBlockLocation().add(0.5, 0.0, 0.5)
+			val playerLoc = player.location
+			directControlCenter = playerLoc.toBlockLocation().add(0.5, playerLoc.y.rem(1)+0.001, 0.5)
+			player.teleport(directControlCenter!!)
 		} else {
 			sendMessage(
 				text()

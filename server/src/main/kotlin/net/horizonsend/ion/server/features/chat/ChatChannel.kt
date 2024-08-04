@@ -24,12 +24,15 @@ import net.horizonsend.ion.server.features.chat.messages.NationsChatMessage
 import net.horizonsend.ion.server.features.chat.messages.NormalChatMessage
 import net.horizonsend.ion.server.features.progression.Levels
 import net.horizonsend.ion.server.features.progression.SLXP
+import net.horizonsend.ion.server.features.sidebar.SidebarIcon
 import net.horizonsend.ion.server.features.space.Space
 import net.horizonsend.ion.server.features.starship.active.ActiveStarships
 import net.horizonsend.ion.server.features.starship.control.controllers.player.PlayerController
+import net.horizonsend.ion.server.features.starship.fleet.Fleets
 import net.horizonsend.ion.server.miscellaneous.utils.PlayerWrapper.Companion.common
 import net.horizonsend.ion.server.miscellaneous.utils.slPlayerId
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.Component.empty
 import net.kyori.adventure.text.Component.text
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.format.NamedTextColor.AQUA
@@ -39,6 +42,7 @@ import net.kyori.adventure.text.format.NamedTextColor.DARK_GRAY
 import net.kyori.adventure.text.format.NamedTextColor.DARK_GREEN
 import net.kyori.adventure.text.format.NamedTextColor.DARK_PURPLE
 import net.kyori.adventure.text.format.NamedTextColor.DARK_RED
+import net.kyori.adventure.text.format.NamedTextColor.GOLD
 import net.kyori.adventure.text.format.NamedTextColor.GREEN
 import net.kyori.adventure.text.format.NamedTextColor.LIGHT_PURPLE
 import net.kyori.adventure.text.format.NamedTextColor.RED
@@ -49,6 +53,7 @@ import net.kyori.adventure.text.format.TextDecoration
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
 import net.luckperms.api.node.NodeEqualityPredicate
 import org.bukkit.Bukkit
+import org.bukkit.World
 import org.bukkit.entity.Player
 
 @Suppress("UNUSED") // They're used
@@ -120,9 +125,46 @@ enum class ChatChannel(val displayName: Component, val commandAliases: List<Stri
 				return player.userError("You're not on a planet! To go back to global chat, use /global")
 			}
 
-			val component = formatChatMessage(text("Planet", GREEN, TextDecoration.BOLD), player, event, messageColor).buildChatComponent()
+			val component = formatChatMessage(text("Planet", BLUE, TextDecoration.BOLD), player, event, messageColor).buildChatComponent()
 
 			for (other in player.world.players) {
+				if (PlayerCache[other].blockedPlayerIDs.contains(player.slPlayerId)) continue
+				other.sendMessage(component)
+			}
+		}
+	},
+
+	SYSTEM(text("System", TextColor.fromHexString("#FF8234")!!), listOf("systemchat", "system", "sy"), TextColor.fromHexString("#FF8234")!!) {
+		override fun onChat(player: Player, event: AsyncChatEvent) {
+			val world = player.world
+
+			val worlds = mutableSetOf<World>()
+
+			worlds.add(world)
+
+			val planet = Space.getPlanet(world)
+
+			if (planet != null) {
+				val spaceWorld = planet.spaceWorld
+				spaceWorld?.let { worlds.add(it) }
+
+				val star = planet.sun
+				Space.getPlanets().filter { it.sun == star }.mapNotNullTo(worlds) { it.planetWorld }
+			}
+
+			// this might become a problem if we ever put more than 1 star in a system
+			val star = Space.getStars().firstOrNull { it.spaceWorld == world }
+			if (star != null) {
+				Space.getPlanets().filter { it.sun == star }.mapNotNullTo(worlds) { it.planetWorld }
+			}
+
+			if (worlds.isEmpty()) {
+				return player.userError("You're not in a system! To go back to global chat, use /global")
+			}
+
+			val component = formatChatMessage(text("System", TextColor.fromHexString("#FF8234")!!, TextDecoration.BOLD), player, event, messageColor).buildChatComponent()
+
+			for (other in worlds.flatMap { it.players }) {
 				if (PlayerCache[other].blockedPlayerIDs.contains(player.slPlayerId)) continue
 				other.sendMessage(component)
 			}
@@ -211,6 +253,21 @@ enum class ChatChannel(val displayName: Component, val commandAliases: List<Stri
 			}
 
 			starship.sendMessage(formatChatMessage(prefix, player, event, messageColor).buildChatComponent())
+		}
+	},
+
+	FLEET(text("Fleet", HEColorScheme.HE_DARK_ORANGE, TextDecoration.BOLD), listOf("fleetchat", "fc", "fchat"), HEColorScheme.HE_LIGHT_ORANGE) {
+		override fun onChat(player: Player, event: AsyncChatEvent) {
+			val fleet = Fleets.findByMember(player)
+				?: return player.userError("You're not in a fleet! <italic>(Hint: To get back to global, use /global)")
+
+			val prefix = ofChildren(
+				displayName,
+				Component.space(),
+				if (fleet.leaderId == player.uniqueId) text(SidebarIcon.FLEET_COMMANDER_ICON.text, GOLD, TextDecoration.BOLD) else empty()
+			)
+
+			fleet.sendMessage(formatChatMessage(prefix, player, event, messageColor).buildChatComponent())
 		}
 	},
 

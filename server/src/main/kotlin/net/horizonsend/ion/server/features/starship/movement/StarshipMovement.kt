@@ -9,14 +9,17 @@ import net.horizonsend.ion.common.database.schema.Cryopod
 import net.horizonsend.ion.common.database.schema.starships.StarshipData
 import net.horizonsend.ion.common.extensions.information
 import net.horizonsend.ion.common.extensions.serverError
+import net.horizonsend.ion.server.IonServer
 import net.horizonsend.ion.server.features.space.CachedPlanet
 import net.horizonsend.ion.server.features.space.Space
+import net.horizonsend.ion.server.features.space.SpaceWorlds
+import net.horizonsend.ion.server.features.starship.StarshipType
 import net.horizonsend.ion.server.features.starship.active.ActiveControlledStarship
 import net.horizonsend.ion.server.features.starship.active.ActiveStarship
 import net.horizonsend.ion.server.features.starship.active.ActiveStarships
 import net.horizonsend.ion.server.features.starship.event.EnterPlanetEvent
 import net.horizonsend.ion.server.features.starship.isFlyable
-import net.horizonsend.ion.server.features.starship.subsystem.CryoSubsystem
+import net.horizonsend.ion.server.features.starship.subsystem.misc.CryoSubsystem
 import net.horizonsend.ion.server.miscellaneous.utils.Vec3i
 import net.horizonsend.ion.server.miscellaneous.utils.blockKey
 import net.horizonsend.ion.server.miscellaneous.utils.blockKeyX
@@ -57,8 +60,19 @@ abstract class StarshipMovement(val starship: ActiveStarship, val newWorld: Worl
 
 		check(newWorld != world1) { "New world can't be the same as the current world" }
 
+		if (starship.type == StarshipType.BATTLECRUISER && !SpaceWorlds.contains(world2)) {
+			throw StarshipMovementException("Battlecruisers cannot support their weight within strong gravity wells!")
+		}
+
+		if (starship.type == StarshipType.BARGE && !SpaceWorlds.contains(world2)) {
+			throw StarshipMovementException("Barges cannot support their weight within strong gravity wells!")
+		}
+
+		//TODO replace this system with something better
+
 		if (!ActiveStarships.isActive(starship)) {
 			starship.serverError("Starship not active, movement cancelled.")
+			Throwable().printStackTrace()
 			return
 		}
 
@@ -76,6 +90,7 @@ abstract class StarshipMovement(val starship: ActiveStarship, val newWorld: Worl
 		}
 
 		validateWorldBorders(starship.min, starship.max, findPassengers(world1), world2)
+		checkCelestialBodies(starship.min, starship.max, world2)
 
 		val oldLocationArray = oldLocationSet.filter {
 			isFlyable(world1.getBlockAt(blockKeyX(it), blockKeyY(it), blockKeyZ(it)).blockData.nms)
@@ -128,9 +143,8 @@ abstract class StarshipMovement(val starship: ActiveStarship, val newWorld: Worl
 	}
 
 	private fun findPassengers(world1: World): List<Entity> {
-		val passengerChunks = starship.blocks
-			.map { world1.getChunkAt(blockKeyX(it) shr 4, blockKeyZ(it) shr 4) }
-			.toSet()
+		val passengerChunks = starship.blocks.clone()
+			.mapTo(mutableSetOf()) { world1.getChunkAt(blockKeyX(it) shr 4, blockKeyZ(it) shr 4) }
 
 		val passengers = mutableSetOf<Entity>()
 
@@ -171,6 +185,23 @@ abstract class StarshipMovement(val starship: ActiveStarship, val newWorld: Worl
 				"You're too close to the world border! " +
 					"${passenger.name} would be outside of it at ${Vec3i(newLoc)}."
 			)
+		}
+	}
+
+	private fun checkCelestialBodies(min: Vec3i, max: Vec3i, world2: World) {
+		val newMin = displacedVec(min).toLocation(world2)
+		val newMax = displacedVec(max).toLocation(world2)
+
+		val stars = Space.getStars().filter { it.spaceWorld?.uid == world2.uid }
+
+		for (star in stars) {
+			val planetLoc = star.location.toLocation(world2)
+
+			val distance1 = newMin.toLocation(world2).distance(planetLoc)
+			val distance2 = newMax.toLocation(world2).distance(planetLoc)
+
+			if (distance1 < star.outerSphereRadius || distance2 < star.outerSphereRadius)
+				throw StarshipOutOfBoundsException("Starship would be inside ${star.name}!")
 		}
 	}
 
@@ -255,6 +286,8 @@ abstract class StarshipMovement(val starship: ActiveStarship, val newWorld: Worl
 	}
 
 	private fun exitPlanet(world: World, starship: ActiveControlledStarship): Boolean {
+		if (starship.isTeleporting) return false
+
 		val planet: CachedPlanet = Space.getPlanet(world) ?: return false
 		val pilot: Player = starship.playerPilot ?: return false
 		val direction: Vector = pilot.location.direction
@@ -275,6 +308,9 @@ abstract class StarshipMovement(val starship: ActiveStarship, val newWorld: Worl
 			.add(direction.x * distance, 0.0, direction.z * distance)
 
 		StarshipTeleportation.teleportStarship(starship, exitPoint)
+
+		IonServer.slF4JLogger.info("Attempting to exit planet")
+
 		return true
 	}
 

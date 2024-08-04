@@ -3,10 +3,11 @@ package net.horizonsend.ion.server.command.qol
 import co.aikar.commands.annotation.CommandAlias
 import co.aikar.commands.annotation.CommandCompletion
 import co.aikar.commands.annotation.CommandPermission
+import co.aikar.commands.annotation.Optional
 import co.aikar.commands.annotation.Subcommand
 import net.horizonsend.ion.common.extensions.success
 import net.horizonsend.ion.common.extensions.userError
-import net.horizonsend.ion.server.command.AnyItem
+import net.horizonsend.ion.server.command.GlobalCompletions
 import net.horizonsend.ion.server.command.GlobalCompletions.toItemString
 import net.horizonsend.ion.server.command.SLCommand
 import net.horizonsend.ion.server.command.admin.debug
@@ -21,7 +22,8 @@ import org.bukkit.inventory.InventoryHolder
 object ContainerCommand : SLCommand() {
 	@Suppress("unused")
 	@Subcommand("empty")
-	fun onEmpty(sender: Player, anyItem: AnyItem) {
+	@CommandCompletion("@anyItem")
+	fun onEmpty(sender: Player, @Optional str: String?) {
 		val maxSelectionVolume = 200000
 		val selection = sender.getSelection() ?: return
 		if(selection.volume > maxSelectionVolume) {
@@ -32,58 +34,40 @@ object ContainerCommand : SLCommand() {
 		var count = 0
 		val containerList = mutableListOf<InventoryHolder>()
 		for (blockPosition in selection) {
-			val block =
-				sender.world.getBlockAt(blockPosition.x, blockPosition.y, blockPosition.z).state as? InventoryHolder ?: continue
+			val block = sender.world.getBlockAt(blockPosition.x, blockPosition.y, blockPosition.z).state as? InventoryHolder ?: continue
 			containerList.add(block)
 			sender.debug(""+containerList.size)
 		}
+		val item = if(str != null) GlobalCompletions.stringToItem(str) else null
 		Tasks.async {
-			anyItem.amount = anyItem.maxStackSize
-			for(block in containerList) {
-				if (block.inventory.contains(anyItem.type)) {
-					count++
-					for (item in block.inventory.contents) {
-						if (item != null && item.type == anyItem.type) block.inventory.remove(item)
+			if(item == null){
+				for(block in containerList) {
+					if (!block.inventory.isEmpty) {
+						count++
+						block.inventory.clear()
 					}
 				}
-			}
-			sender.success("Cleared $count containers storing ${toItemString(anyItem)}.")
-		}
-	}
-	@Suppress("unused")
-	@Subcommand("empty")
-	fun onEmpty(sender: Player){
-		val maxSelectionVolume = 200000
-		val selection = sender.getSelection() ?: return
-		if(selection.volume > maxSelectionVolume) {
-			sender.userError("Selection too large! The maximum volume is $maxSelectionVolume.")
-			return
-		}
-		if(sender.world.name != selection.world?.name) return
-		var count = 0
-		val containerList = mutableListOf<InventoryHolder>()
-		for (blockPosition in selection) {
-			val block =
-				sender.world.getBlockAt(blockPosition.x, blockPosition.y, blockPosition.z).state as? InventoryHolder ?: continue
-			containerList.add(block)
-			sender.debug(""+containerList.size)
-		}
-
-		Tasks.async {
-			for(block in containerList) {
-				if (!block.inventory.isEmpty) {
-					count++
-					block.inventory.clear()
+				sender.success("Cleared $count containers")
+			}else {
+				item.amount = item.maxStackSize
+				for (block in containerList) {
+					if (block.inventory.contains(item.type)) {
+						count++
+						for (itemStack in block.inventory.contents) {
+							if (itemStack != null && itemStack.type == item.type) block.inventory.remove(itemStack)
+						}
+					}
 				}
+				sender.success("Cleared $count containers storing ${toItemString(item)}.")
 			}
-			sender.success("Cleared $count containers")
 		}
 	}
 
 	@Suppress("unused")
 	@Subcommand("fill")
 	@CommandCompletion("@anyItem")
-	fun onFill(sender: Player, anyItem: AnyItem) {
+	fun onFill(sender: Player, str: String) {
+		val item = GlobalCompletions.stringToItem(str) ?: sender.inventory.itemInMainHand
 		val maxSelectionVolume = 200000
 		val selection = sender.getSelection() ?: return
 		if(selection.volume > maxSelectionVolume) {
@@ -98,16 +82,16 @@ object ContainerCommand : SLCommand() {
 			containerList.add(block)
 		}
 		Tasks.async {
-			anyItem.amount = anyItem.maxStackSize
+			item.amount = item.maxStackSize
 			for(block in containerList) {
-				if (LegacyItemUtils.canFit(block.inventory, anyItem)) {
+				if (LegacyItemUtils.canFit(block.inventory, item)) {
 					count++
-					for ((index, item) in block.inventory.withIndex()) {
-						if (item == null) block.inventory.setItem(index, anyItem)
+					for ((index, itemStack) in block.inventory.withIndex()) {
+						if (itemStack == null) block.inventory.setItem(index, item)
 					}
 				}
 			}
-			sender.success("Filled $count containers with ${toItemString(anyItem)}.")
+			sender.success("Filled $count containers with ${toItemString(item)}.")
 		}
 	}
 }

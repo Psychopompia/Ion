@@ -1,5 +1,6 @@
 package net.horizonsend.ion.server.command.starship
 
+import co.aikar.commands.InvalidCommandArgument
 import co.aikar.commands.PaperCommandManager
 import co.aikar.commands.annotation.CommandAlias
 import co.aikar.commands.annotation.CommandCompletion
@@ -8,6 +9,7 @@ import co.aikar.commands.annotation.Description
 import co.aikar.commands.annotation.Optional
 import co.aikar.commands.bukkit.contexts.OnlinePlayer
 import net.horizonsend.ion.common.database.cache.nations.RelationCache
+import net.horizonsend.ion.common.database.schema.misc.SLPlayer
 import net.horizonsend.ion.common.database.schema.starships.Blueprint
 import net.horizonsend.ion.common.extensions.alert
 import net.horizonsend.ion.common.extensions.information
@@ -31,10 +33,11 @@ import net.horizonsend.ion.common.utils.text.template
 import net.horizonsend.ion.server.IonServer
 import net.horizonsend.ion.server.configuration.ServerConfiguration.Pos
 import net.horizonsend.ion.server.features.cache.PlayerCache
-import net.horizonsend.ion.server.features.client.display.PlanetSpaceRendering
+import net.horizonsend.ion.server.features.client.display.HudIcons
 import net.horizonsend.ion.server.features.misc.HyperspaceBeaconManager
 import net.horizonsend.ion.server.features.misc.NewPlayerProtection.hasProtection
 import net.horizonsend.ion.server.features.multiblock.drills.DrillMultiblock
+import net.horizonsend.ion.server.features.sidebar.command.BookmarkCommand
 import net.horizonsend.ion.server.features.space.Space
 import net.horizonsend.ion.server.features.space.SpaceWorlds
 import net.horizonsend.ion.server.features.starship.AutoTurretTargeting
@@ -42,7 +45,6 @@ import net.horizonsend.ion.server.features.starship.DeactivatedPlayerStarships
 import net.horizonsend.ion.server.features.starship.Interdiction
 import net.horizonsend.ion.server.features.starship.Interdiction.toggleGravityWell
 import net.horizonsend.ion.server.features.starship.PilotedStarships
-import net.horizonsend.ion.server.features.starship.StarshipDestruction
 import net.horizonsend.ion.server.features.starship.StarshipSchematic
 import net.horizonsend.ion.server.features.starship.StarshipType
 import net.horizonsend.ion.server.features.starship.active.ActiveControlledStarship
@@ -52,11 +54,13 @@ import net.horizonsend.ion.server.features.starship.control.controllers.player.P
 import net.horizonsend.ion.server.features.starship.control.movement.PlayerStarshipControl.isHoldingController
 import net.horizonsend.ion.server.features.starship.control.movement.StarshipCruising
 import net.horizonsend.ion.server.features.starship.control.signs.StarshipSigns
+import net.horizonsend.ion.server.features.starship.destruction.StarshipDestruction
 import net.horizonsend.ion.server.features.starship.hyperspace.Hyperspace
 import net.horizonsend.ion.server.features.starship.hyperspace.MassShadows
-import net.horizonsend.ion.server.features.starship.subsystem.HyperdriveSubsystem
-import net.horizonsend.ion.server.features.starship.subsystem.NavCompSubsystem
+import net.horizonsend.ion.server.features.starship.subsystem.misc.HyperdriveSubsystem
+import net.horizonsend.ion.server.features.starship.subsystem.misc.NavCompSubsystem
 import net.horizonsend.ion.server.features.starship.subsystem.weapon.interfaces.AutoWeaponSubsystem
+import net.horizonsend.ion.server.features.starship.subsystem.weapon.secondary.ArsenalRocketStarshipWeaponSubsystem
 import net.horizonsend.ion.server.features.waypoint.WaypointManager
 import net.horizonsend.ion.server.miscellaneous.utils.*
 import net.kyori.adventure.text.Component
@@ -68,8 +72,11 @@ import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.World
 import org.bukkit.block.Sign
+import org.bukkit.entity.Enemy
+import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
 import org.bukkit.util.Vector
+import org.litote.kmongo.setValue
 import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.ThreadLocalRandom
@@ -91,14 +98,32 @@ object MiscStarshipCommands : net.horizonsend.ion.server.command.SLCommand() {
 				.filter { beacon -> beacon.spaceLocation.world == e.player.world.name }
 				.map { it.name.replace(" ", "_") }
 		}
+
+		manager.commandContexts.registerContext(AutoTurretTargeting.AutoTurretTarget::class.java) { context ->
+			val target = context.popFirstArg()
+			val formatted = if (target.contains(":".toRegex())) target.substringAfter(":") else target
+
+			Bukkit.getPlayer(formatted)?.let { AutoTurretTargeting.target(it) } ?:
+				ActiveStarships[formatted]?.let { AutoTurretTargeting.target(it) } ?:
+				runCatching {
+					val type = EntityType.valueOf(formatted)
+					val instance = type.entityClass?.let { Enemy::class.java.isAssignableFrom(it) }
+					return@runCatching type.takeIf { instance ?: false }
+				}.getOrNull()?.let { AutoTurretTargeting.target(it) } ?:
+				throw InvalidCommandArgument("Target $target could not be found!")
+		}
+
 		manager.commandCompletions.registerAsyncCompletion("autoTurretTargets") { context ->
 			val all = mutableListOf<String>()
 
 			ActiveStarships.getInWorld(context.player.world).mapTo(all) { it.identifier }
-			all.addAll(IonServer.server.onlinePlayers.map { it.name })
+			IonServer.server.onlinePlayers.mapTo(all) { it.name }
 			all.remove(context.player.name)
 			all
 		}
+
+		manager.commandCompletions.setDefaultCompletion("autoTurretTargets", AutoTurretTargeting.AutoTurretTarget::class.java)
+
 		manager.commandCompletions.registerAsyncCompletion("nodes") { context ->
 			ActiveStarships.findByPilot(context.player)?.weaponSets?.keys()
 		}
@@ -156,10 +181,12 @@ object MiscStarshipCommands : net.horizonsend.ion.server.command.SLCommand() {
 	@CommandAlias("jump")
 	@Description("Jump to a set of coordinates, a hyperspace beacon, or a planet")
 	fun onJump(sender: Player) {
-		val selectedPlanetData = PlanetSpaceRendering.planetSelectorDataMap[sender.uniqueId]
+		val selectedPlanetData = HudIcons.selectorDataMap[sender.uniqueId]
 		if (selectedPlanetData != null) {
 			// player is looking at a planet in their HUD
-			onJump(sender, selectedPlanetData.name, null)
+			onJump(sender, HudIcons.sanitizePrefixes(selectedPlanetData.name).replace(' ', '_'), null)
+		} else if (getStarshipPiloting(sender).beacon != null) {
+			onUseBeacon(sender)
 		} else {
 			sender.userError("Invalid destination. Type /jump while looking at a planet, or /jump <planet>, /jump <hyperspace gate> or /jump <x> <z>")
 		}
@@ -228,6 +255,14 @@ object MiscStarshipCommands : net.horizonsend.ion.server.command.SLCommand() {
 		} ?: IonServer.configuration.beacons.firstOrNull {
 			it.name.replace(" ", "_") == destination
 		}?.spaceLocation
+		?: BookmarkCommand.getBookmarks(sender).firstOrNull { it.name.replace(' ', '_') == destination }?.let {
+			Pos(
+				it.worldName,
+				it.x,
+				it.y,
+				it.z
+			)
+		}
 
 		if (destinationPos == null) {
 			sender.userError("Unknown destination $destination.")
@@ -256,7 +291,7 @@ object MiscStarshipCommands : net.horizonsend.ion.server.command.SLCommand() {
 		destinationWorld: World,
 		maxRange: Int,
 		sender: Player,
-		tier: Int?
+		tier: Int?,
 	) {
 		val hyperdrive: HyperdriveSubsystem = tier?.let { Hyperspace.findHyperdrive(starship, tier) }
 			?: Hyperspace.findHyperdrive(starship) ?: fail {
@@ -368,8 +403,8 @@ object MiscStarshipCommands : net.horizonsend.ion.server.command.SLCommand() {
 
 	@Suppress("unused")
 	@CommandAlias("settarget|starget|st")
-	@CommandCompletion("@nodes @autoTurretTargets @nothing")
-	fun onSetTarget(sender: Player, set: String, @Optional target: String?) {
+	@CommandCompletion("@nodes  @nothing")
+	fun onSetTarget(sender: Player, set: String, @Optional target: AutoTurretTargeting.AutoTurretTarget<*>?) {
 		val starship = getStarshipRiding(sender)
 		val weaponSet = set.lowercase(Locale.getDefault())
 		failIf(!starship.weaponSets.containsKey(weaponSet)) { "No such weapon set $weaponSet" }
@@ -382,16 +417,9 @@ object MiscStarshipCommands : net.horizonsend.ion.server.command.SLCommand() {
 			return
 		}
 
-		val formatted = if (target.contains(":".toRegex())) target.substringAfter(":") else target
+		starship.autoTurretTargets[weaponSet] = target
 
-		val targeted =
-			Bukkit.getPlayer(formatted)?.let { AutoTurretTargeting.target(it) } ?:
-			ActiveStarships[formatted]?.let { AutoTurretTargeting.target(it) } ?:
-			fail { "Target $target could not be found!" }
-
-		starship.autoTurretTargets[weaponSet] = targeted
-
-		sender.information("Set target of <aqua>$weaponSet</aqua> to <white>${target}")
+		sender.information("Set target of <aqua>$weaponSet</aqua> to <white>${target.identifier}")
 	}
 
 	@Suppress("unused")
@@ -712,6 +740,32 @@ object MiscStarshipCommands : net.horizonsend.ion.server.command.SLCommand() {
 					formatLink("Click this link to download it", it.toString())
 				))
 			}
+		}
+	}
+
+	@Suppress("unused")
+	@CommandAlias("targetposition")
+	@Description("Targets a currentPosition")
+	fun onTargetPosition(sender: Player, x: Double, y: Double, z: Double) {
+		val starship = getStarshipPiloting(sender)
+		if (!starship.weapons.any {it is ArsenalRocketStarshipWeaponSubsystem}) sender.userError("Error: No Arsenal Missiles found, position not targeted")
+
+		starship.targetedPosition = Location(starship.world, x, y, z)
+		sender.information("Targeted: $x, $y, $z with the ships Arsenal Missiles")
+	}
+
+	@CommandAlias("enableAlternateDCCruise")
+	@CommandCompletion("true|false")
+	@Suppress("unused")
+	fun onUseAlternateDCCruise(sender: Player, @Optional toggle: Boolean?) {
+		val useAlternateDcCruise = toggle ?: !PlayerCache[sender].useAlternateDCCruise
+		SLPlayer.updateById(sender.slPlayerId, setValue(SLPlayer::useAlternateDCCruise, useAlternateDcCruise))
+		PlayerCache[sender.uniqueId].useAlternateDCCruise = useAlternateDcCruise
+		sender.success("Changed alternate DC cruise to $useAlternateDcCruise")
+		if (useAlternateDcCruise) {
+			sender.success("Activating cruise while in direct control will override DC")
+		} else {
+			sender.success("Direct control will not be overriden by cruise")
 		}
 	}
 }

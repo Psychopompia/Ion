@@ -10,6 +10,7 @@ import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
+import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.PlayerDeathEvent
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -19,7 +20,12 @@ object ShipKillXP : IonServerComponent() {
 	data class ShipDamageData(
 		val points: AtomicInteger = AtomicInteger(),
 		var lastDamaged: Long = System.currentTimeMillis()
-	)
+	) {
+		fun incrementPoints(by: Int): Int {
+			lastDamaged = System.currentTimeMillis()
+			return this.points.addAndGet(by)
+		}
+	}
 
 	val damagerExpiration get() = System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(5)
 
@@ -36,7 +42,7 @@ object ShipKillXP : IonServerComponent() {
 	@EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
 	fun onPlayerDeath(event: PlayerDeathEvent) {
 		val player: Player = event.entity
-		val killer: Player? = player.killer
+		val killer: Entity? = (player.lastDamageCause as? EntityDamageByEntityEvent)?.damager
 
 		onPlayerKilled(player.uniqueId, killer)
 	}
@@ -44,7 +50,7 @@ object ShipKillXP : IonServerComponent() {
 	private fun onPlayerKilled(killed: UUID, killer: Entity?) {
 		val killedStarship = ActiveStarships.findByPilot(killed) ?: return
 
-		killer?.let { killedStarship.addToDamagers(killer.damager()) }
+		killer?.let { killedStarship.addDamager(killer.damager(), 10_000) }
 
 		onShipKill(killedStarship)
 	}
@@ -55,10 +61,12 @@ object ShipKillXP : IonServerComponent() {
 				ship "${starship.getDisplayNamePlain()}" killed at ${starship.centerOfMass}.
 				Pilot: ${starship.controller}.
 				Damagers: ${starship.damagers.entries.joinToString { "(Damager: ${it.key}, Points: ${it.value.points})" }}
+				Rewards provider: ${starship.rewardsProviders.joinToString { it.javaClass.simpleName }}
+				Sink message factory: ${starship.sinkMessageFactory}
 			""".trimIndent()
 		)
 
-		starship.rewardsProvider.triggerReward()
+		starship.rewardsProviders.forEach { it.triggerReward() }
 		starship.sinkMessageFactory.execute()
 	}
 }

@@ -4,23 +4,26 @@ import com.google.common.cache.CacheBuilder
 import com.google.common.cache.CacheLoader
 import com.google.common.cache.LoadingCache
 import net.horizonsend.ion.common.database.cache.nations.NationCache
+import net.horizonsend.ion.server.features.ai.util.AITarget
+import net.horizonsend.ion.server.features.ai.util.PlayerTarget
+import net.horizonsend.ion.server.features.ai.util.StarshipTarget
 import net.horizonsend.ion.server.features.cache.PlayerCache
 import net.horizonsend.ion.server.features.progression.SLXP
 import net.horizonsend.ion.server.features.starship.active.ActiveStarship
 import net.horizonsend.ion.server.features.starship.active.ActiveStarships
-import net.horizonsend.ion.server.features.starship.ai.util.AITarget
-import net.horizonsend.ion.server.features.starship.ai.util.PlayerTarget
-import net.horizonsend.ion.server.features.starship.ai.util.StarshipTarget
 import net.horizonsend.ion.server.features.starship.damager.event.ImpactStarshipEvent
 import net.horizonsend.ion.server.miscellaneous.utils.VAULT_ECO
 import net.kyori.adventure.audience.Audience
 import net.kyori.adventure.audience.ForwardingAudience
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.Component.translatable
+import net.kyori.adventure.translation.GlobalTranslator
 import org.bukkit.Color
 import org.bukkit.World
 import org.bukkit.block.Block
 import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
+import java.util.Locale
 
 /** An object capable of damaging a starship **/
 interface Damager : ForwardingAudience {
@@ -90,7 +93,7 @@ fun getDamager(entity: Entity) : Damager {
 }
 
 class EntityDamager(val entity: Entity) : NoOpDamager() {
-	override fun getDisplayName(): Component = entity.name()
+	override fun getDisplayName(): Component = entity.customName() ?: GlobalTranslator.render(translatable(entity.type), Locale.ENGLISH)
 	override fun getAITarget(): AITarget? = null
 
 	override fun audiences(): MutableIterable<Audience> {
@@ -138,6 +141,6 @@ fun addToDamagers(world: World, block: Block, shooter: Damager) {
 
 		if (event.isCancelled) return
 
-		otherStarship.addToDamagers(shooter)
+		otherStarship.addDamager(shooter)
 	}
 }

@@ -2,25 +2,34 @@ package net.horizonsend.ion.server.features.starship.control.movement
 
 import net.horizonsend.ion.common.extensions.information
 import net.horizonsend.ion.common.extensions.informationAction
+import net.horizonsend.ion.common.extensions.success
 import net.horizonsend.ion.common.extensions.userErrorAction
 import net.horizonsend.ion.common.utils.miscellaneous.roundToHundredth
 import net.horizonsend.ion.common.utils.text.colors.Colors
 import net.horizonsend.ion.common.utils.text.ofChildren
+import net.horizonsend.ion.server.IonServer
 import net.horizonsend.ion.server.IonServerComponent
+import net.horizonsend.ion.server.features.cache.PlayerCache
+import net.horizonsend.ion.server.features.gui.custom.settings.commands.SoundSettingsCommand
+import net.horizonsend.ion.server.features.nations.utils.playSoundInRadius
 import net.horizonsend.ion.server.features.starship.PilotedStarships
 import net.horizonsend.ion.server.features.starship.StarshipType.PLATFORM
 import net.horizonsend.ion.server.features.starship.active.ActiveControlledStarship
 import net.horizonsend.ion.server.features.starship.active.ActiveStarships
 import net.horizonsend.ion.server.features.starship.control.controllers.Controller
 import net.horizonsend.ion.server.features.starship.control.controllers.NoOpController
+import net.horizonsend.ion.server.features.starship.control.controllers.ai.AIController
+import net.horizonsend.ion.server.features.starship.control.controllers.player.PlayerController
 import net.horizonsend.ion.server.features.starship.control.controllers.player.UnpilotedController
 import net.horizonsend.ion.server.features.starship.event.movement.StarshipStartCruisingEvent
 import net.horizonsend.ion.server.features.starship.event.movement.StarshipStopCruisingEvent
 import net.horizonsend.ion.server.features.starship.hyperspace.Hyperspace
 import net.horizonsend.ion.server.features.starship.movement.TranslateMovement
 import net.horizonsend.ion.server.miscellaneous.utils.Tasks
+import net.horizonsend.ion.server.miscellaneous.utils.actualType
 import net.horizonsend.ion.server.miscellaneous.utils.leftFace
 import net.horizonsend.ion.server.miscellaneous.utils.rightFace
+import net.horizonsend.ion.server.miscellaneous.utils.runnable
 import net.kyori.adventure.text.Component.text
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.format.TextColor.color
@@ -34,7 +43,7 @@ object StarshipCruising : IonServerComponent() {
 	const val SECONDS_PER_CRUISE = 2.0
 
 	class CruiseData(
-		starship: ActiveControlledStarship,
+		val starship: ActiveControlledStarship,
 		var velocity: Vector = Vector(),
 		var targetSpeed: Int = 0,
 		var targetDir: Vector? = null,
@@ -43,12 +52,16 @@ object StarshipCruising : IonServerComponent() {
 		var lastBlockCount = starship.initialBlockCount
 
 		fun accelerate(maxSpeed: Int, thrusterPower: Double) {
+			val limitedTarget = (targetSpeed * starship.disabledThrusterRatio).toInt()
+
 			val dir = this.targetDir ?: Vector()
-			val speed = if (maxSpeed <= 0) targetSpeed else min(targetSpeed, maxSpeed)
+			val speed = if (maxSpeed <= 0) limitedTarget else min(limitedTarget, maxSpeed)
 			val newVelocity = dir.clone().multiply(speed)
+
 			newVelocity.y = 0.0
 			moveTowards(velocity, newVelocity, getRealAccel(thrusterPower) * SECONDS_PER_CRUISE)
 			velocity.y = 0.0
+
 			if (velocity.x.isNaN()) velocity.x = 0.0
 			if (velocity.z.isNaN()) velocity.z = 0.0
 		}
@@ -182,6 +195,8 @@ object StarshipCruising : IonServerComponent() {
 		maxSpeed /= 2
 		maxSpeed = (maxSpeed * starship.balancing.cruiseSpeedMultiplier).toInt()
 
+		val wasCruising = isCruising(starship)
+
 		starship.cruiseData.accel = accel
 		starship.cruiseData.targetSpeed = maxSpeed
 		starship.cruiseData.targetDir = Vector(dx, 0, dz).normalize()
@@ -189,12 +204,82 @@ object StarshipCruising : IonServerComponent() {
 		val realAccel = starship.cruiseData.getRealAccel(starship.reactor.powerDistributor.thrusterPortion)
 
 		val info = "<aqua>$dx,$dz <dark_gray>; <yellow>Accel<dark_gray>/<green>Speed<dark_gray>: <yellow>$realAccel<dark_gray>/<yellow>$maxSpeed"
-		if (!isCruising(starship)) {
-			starship.informationAction("Cruise started, dir<dark_gray>: $info")
 
-			updateCruisingShip(starship)
+		val useAlternateMethod = (controller as? PlayerController)?.player?.let { PlayerCache[it].useAlternateDCCruise } ?: false
+
+		if (useAlternateMethod) {
+			if (!wasCruising) {
+				updateCruisingShip(starship)
+				starship.informationAction("Cruise started, dir<dark_gray>: $info")
+
+				if (starship.isDirectControlEnabled) {
+					starship.setDirectControlEnabled(false)
+					starship.onlinePassengers.forEach { passenger ->
+						passenger.information(
+							"Stopping DC. Starting cruise..."
+						)
+					}
+				} else {
+					starship.onlinePassengers.forEach { passenger ->
+						passenger.information(
+							"Cruise started..."
+						)
+					}
+				}
+			} else {
+				starship.informationAction("Adjusted dir to $info <yellow>[Left click to stop]")
+				if (starship.controller !is AIController) starship.success("Adjusted dir to $info <yellow>[Left click to stop]")
+			}
+
+			starship.onlinePassengers.forEach { passenger ->
+				if (PlayerCache[passenger.uniqueId].enableAdditionalSounds) {
+					var tick = 0
+					val length = when (PlayerCache[passenger.uniqueId].soundCruiseIndicator) {
+						SoundSettingsCommand.CruiseIndicatorSounds.OFF.ordinal -> 0
+						SoundSettingsCommand.CruiseIndicatorSounds.SHORT.ordinal -> 2
+						SoundSettingsCommand.CruiseIndicatorSounds.LONG.ordinal -> 4
+						else -> 0
+					}
+
+					runnable {
+						if (tick >= length) cancel()
+						if (length != 0) {
+							val startCruiseSound =
+								starship.data.starshipType.actualType.balancingSupplier.get().sounds.startCruise.sound
+							playSoundInRadius(passenger.location, 1.0, startCruiseSound)
+							tick += 1
+						} else cancel()
+					}.runTaskTimer(IonServer, 0L, 5L)
+				}
+			}
 		} else {
-			starship.informationAction("Adjusted dir to $info <yellow>[Left click to stop]")
+			if (!isCruising(starship)) {
+				starship.informationAction("Cruise started, dir<dark_gray>: $info")
+			} else {
+				starship.informationAction("Adjusted dir to $info <yellow>[Left click to stop]")
+				if (starship.controller !is AIController) starship.success("Adjusted dir to $info <yellow>[Left click to stop]")
+			}
+			starship.onlinePassengers.forEach { passenger ->
+				if (PlayerCache[passenger.uniqueId].enableAdditionalSounds) {
+					var tick = 0
+					val length = when (PlayerCache[passenger.uniqueId].soundCruiseIndicator) {
+						SoundSettingsCommand.CruiseIndicatorSounds.OFF.ordinal -> 0
+						SoundSettingsCommand.CruiseIndicatorSounds.SHORT.ordinal -> 2
+						SoundSettingsCommand.CruiseIndicatorSounds.LONG.ordinal -> 4
+						else -> 0
+					}
+
+					runnable {
+						if (tick >= length) cancel()
+						if (length != 0) {
+							val startCruiseSound =
+								starship.data.starshipType.actualType.balancingSupplier.get().sounds.startCruise.sound
+							playSoundInRadius(passenger.location, 1.0, startCruiseSound)
+							tick += 1
+						} else cancel()
+					}.runTaskTimer(IonServer, 0L, 5L)
+				}
+			}
 		}
 	}
 
@@ -223,6 +308,25 @@ object StarshipCruising : IonServerComponent() {
 			passenger.information(
 				"Cruise stopped, decelerating..."
 			)
+			if (PlayerCache[passenger.uniqueId].enableAdditionalSounds) {
+				var tick = 0
+				val length = when (PlayerCache[passenger.uniqueId].soundCruiseIndicator) {
+					SoundSettingsCommand.CruiseIndicatorSounds.OFF.ordinal -> 0
+					SoundSettingsCommand.CruiseIndicatorSounds.SHORT.ordinal -> 5
+					SoundSettingsCommand.CruiseIndicatorSounds.LONG.ordinal -> 20
+					else -> 0
+				}
+
+				runnable {
+					if (tick >= length) cancel()
+					if (length != 0) {
+						val stopCruiseSound =
+							starship.data.starshipType.actualType.balancingSupplier.get().sounds.stopCruise.sound
+						playSoundInRadius(passenger.location, 1.0, stopCruiseSound)
+						tick += 1
+					} else cancel()
+				}.runTaskTimer(IonServer, 0L, 1L)
+			}
 		}
 	}
 

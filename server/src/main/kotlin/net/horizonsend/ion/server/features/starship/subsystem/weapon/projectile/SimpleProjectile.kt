@@ -19,10 +19,12 @@ import org.bukkit.World
 import org.bukkit.block.Block
 import org.bukkit.craftbukkit.v1_20_R3.util.CraftMagicNumbers
 import org.bukkit.entity.Entity
+import org.bukkit.entity.EntityType
 import org.bukkit.entity.LivingEntity
 import org.bukkit.util.RayTraceResult
 import org.bukkit.util.Vector
 import java.util.Locale
+import kotlin.math.roundToInt
 
 abstract class SimpleProjectile(
 	starship: ActiveStarship?,
@@ -71,8 +73,7 @@ abstract class SimpleProjectile(
 		if (!predictedNewLoc.isChunkLoaded) {
 			return
 		}
-
-		val result = loc.world.rayTrace(loc, dir, delta * speed, FluidCollisionMode.NEVER, true, 0.1) { true }
+		val result: RayTraceResult? = loc.world.rayTrace(loc, dir, delta * speed, FluidCollisionMode.NEVER, true, 0.1) { it.type != EntityType.ITEM_DISPLAY }
 		val newLoc = result?.hitPosition?.toLocation(loc.world) ?: predictedNewLoc
 		val travel = loc.distance(newLoc)
 
@@ -122,7 +123,6 @@ abstract class SimpleProjectile(
 		}
 
 		impact(newLoc, block, entity)
-
 		return true
 	}
 
@@ -147,9 +147,8 @@ abstract class SimpleProjectile(
 			"shieldDamageMultiplier = $starshipShieldDamageMultiplier, \n" +
 			"result = ${fraction * explosionPower * starshipShieldDamageMultiplier}"
 		)
-
 		StarshipShields.withExplosionPowerOverride(fraction * explosionPower * starshipShieldDamageMultiplier) {
-			AreaShields.withExplosionPowerOverride(fraction * explosionPower * starshipShieldDamageMultiplier) {
+			AreaShields.withExplosionPowerOverride(fraction * explosionPower * areaShieldDamageMultiplier) {
 				if (!hasHit) {
 					world.createExplosion(newLoc, explosionPower)
 
@@ -171,7 +170,7 @@ abstract class SimpleProjectile(
 			}
 		}
 
-		if (block != null) addToDamagers(world, block, shooter)
+		if (block != null) addToDamagers(world, block, shooter, explosionPower.roundToInt())
 
 		if (entity != null && entity is LivingEntity) when (shooter) {
 			is PlayerDamager -> entity.damage(10.0, shooter.player)
@@ -180,17 +179,21 @@ abstract class SimpleProjectile(
 		}
 	}
 
-	private fun addToDamagers(world: World, block: Block, shooter: Damager) {
+	private fun addToDamagers(world: World, block: Block, shooter: Damager, points: Int = 1) {
 		val x = block.x
 		val y = block.y
 		val z = block.z
+
 		for (otherStarship in ActiveStarships.getInWorld(world)) {
 			if (otherStarship == starship || !otherStarship.contains(x, y, z)) continue
 
-			otherStarship.damagers.getOrPut(shooter) { ShipKillXP.ShipDamageData() }.points.incrementAndGet()
-			onImpactStarship(otherStarship)
+			otherStarship.damagers.getOrPut(shooter) {
+				ShipKillXP.ShipDamageData()
+			}.incrementPoints(points)
+
+			onImpactStarship(otherStarship, block.location)
 		}
 	}
 
-	open fun onImpactStarship(starship: ActiveStarship) {}
+	open fun onImpactStarship(starship: ActiveStarship, impactLocation: Location) {}
 }

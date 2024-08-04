@@ -29,16 +29,29 @@ object PlayerInfoCommand : SLCommand() {
 	@CommandCompletion("@players")
 	fun onExecute(sender: CommandSender, player: String) = asyncCommand(sender) {
 		val slPlayer = SLPlayer[player] ?: throw InvalidCommandArgument("Player $player not found!")
+		sendInfo(sender, slPlayer)
+	}
 
-		sender.sendRichMessage("<yellow>Player <gold>${slPlayer.lastKnownName}")
+	@Suppress("Unused")
+	@Default
+	@CommandAlias("playerinfo|pinfo|pi")
+	fun onExecute(sender: Player) = asyncCommand(sender) {
+		val slPlayer = SLPlayer[sender]
+		sendInfo(sender, slPlayer)
+	}
 
-		sendNationsInfo(sender, slPlayer)
+	private fun sendInfo(sender: CommandSender, target: SLPlayer) {
+		sender.sendRichMessage("<yellow>Player <gold>${target.lastKnownName}")
 
-		sendAdvanceInfo(sender, slPlayer)
+		sendNationsInfo(sender, target)
 
-		sendGracePeriodInfo(sender, slPlayer)
+		sendAdvanceInfo(sender, target)
 
-		sender.sendRichMessage("<gray>Last Seen: ${getInactiveTimeText(slPlayer)}")
+		sendGracePeriodInfo(sender, target)
+
+		sendBountyInfo(sender, target)
+
+		sender.sendRichMessage("<gray>Last Seen: ${getInactiveTimeText(target)}")
 	}
 
 	private fun sendNationsInfo(sender: CommandSender, slPlayer: SLPlayer) {
@@ -85,7 +98,13 @@ object PlayerInfoCommand : SLCommand() {
 
 	private fun sendGracePeriodInfo(sender: CommandSender, slPlayer: SLPlayer) {
 		if (Bukkit.getPlayer(slPlayer._id.uuid)?.hasProtection() != false) {
-			sender.sendRichMessage("<yellow>GracePeriod: <gold>True")
+			sender.sendRichMessage("<yellow>Grace Period: <gold>True")
+		}
+	}
+
+	private fun sendBountyInfo(sender: CommandSender, player: SLPlayer) {
+		if (player.bounty > 0.0) {
+			sender.sendRichMessage("<gold>Bounty: <red>${player.bounty}")
 		}
 	}
 

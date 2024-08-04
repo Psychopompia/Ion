@@ -39,6 +39,9 @@ abstract class AbstractPlayerCache : ManualCache() {
 		var bounty: Double,
 
 		var contactsDistance: Int = 6000,
+		var contactsMaxNameLength: Int = 64,
+		var contactsSort: Int = 0,
+		var contactsColoring: Int = 0,
 		var contactsEnabled: Boolean = true,
 		var contactsStarships: Boolean = true,
 		var lastStarshipEnabled: Boolean = true,
@@ -47,6 +50,22 @@ abstract class AbstractPlayerCache : ManualCache() {
 		var beaconsEnabled: Boolean = true,
 		var stationsEnabled: Boolean = false,
 		var bookmarksEnabled: Boolean = true,
+		var relationAiEnabled: Boolean = true,
+		var relationNoneEnabled: Boolean = true,
+		var relationEnemyEnabled: Boolean = true,
+		var relationUnfriendlyEnabled: Boolean = true,
+		var relationNeutralEnabled: Boolean = true,
+		var relationFriendlyEnabled: Boolean = true,
+		var relationAllyEnabled: Boolean = true,
+		var relationNationEnabled: Boolean = true,
+		var relationAiStationEnabled: Boolean = true,
+		var relationNoneStationEnabled: Boolean = true,
+		var relationEnemyStationEnabled: Boolean = true,
+		var relationUnfriendlyStationEnabled: Boolean = true,
+		var relationNeutralStationEnabled: Boolean = true,
+		var relationFriendlyStationEnabled: Boolean = true,
+		var relationAllyStationEnabled: Boolean = true,
+		var relationNationStationEnabled: Boolean = true,
 
 		var waypointsEnabled: Boolean = true,
 		var compactWaypoints: Boolean = true,
@@ -57,6 +76,16 @@ abstract class AbstractPlayerCache : ManualCache() {
 
 		var hudPlanetsImage: Boolean = true,
 		var hudPlanetsSelector: Boolean = true,
+		var hudIconStars: Boolean = true,
+		var hudIconBeacons: Boolean = true,
+		var hudIconStations: Boolean = false,
+		var hudIconBookmarks: Boolean = false,
+
+		var showItemSearchItem: Boolean = true,
+
+		var useAlternateDCCruise: Boolean = true,
+		var enableAdditionalSounds: Boolean = true,
+		var soundCruiseIndicator: Int = 0,
 
 		var blockedPlayerIDs: Set<SLPlayerId> = setOf(),
 	)
@@ -145,6 +174,33 @@ abstract class AbstractPlayerCache : ManualCache() {
 				}
 			}
 
+			change[SLPlayer::contactsMaxNameLength]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					val contactsMaxNameLength = it.int()
+					data.contactsMaxNameLength = contactsMaxNameLength
+				}
+			}
+
+			change[SLPlayer::contactsSort]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					val contactsSort = it.int()
+					data.contactsSort = contactsSort
+				}
+			}
+
+			change[SLPlayer::contactsColoring]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					val contactsColoring = it.int()
+					data.contactsColoring = contactsColoring
+				}
+			}
+
 			change[SLPlayer::contactsEnabled]?.let {
 				synced {
 					val data = PLAYER_DATA[id.uuid] ?: return@synced
@@ -217,6 +273,150 @@ abstract class AbstractPlayerCache : ManualCache() {
 				}
 			}
 
+			change[SLPlayer::relationAiEnabled]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					val relationAiEnabled = it.boolean()
+					data.relationAiEnabled = relationAiEnabled
+				}
+			}
+
+			change[SLPlayer::relationNoneEnabled]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					val relationNoneEnabled = it.boolean()
+					data.relationNoneEnabled = relationNoneEnabled
+				}
+			}
+
+			change[SLPlayer::relationEnemyEnabled]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					val relationEnemyEnabled = it.boolean()
+					data.relationEnemyEnabled = relationEnemyEnabled
+				}
+			}
+
+			change[SLPlayer::relationUnfriendlyEnabled]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					val relationUnfriendlyEnabled = it.boolean()
+					data.relationUnfriendlyEnabled = relationUnfriendlyEnabled
+				}
+			}
+
+			change[SLPlayer::relationNeutralEnabled]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					val relationNeutralEnabled = it.boolean()
+					data.relationNeutralEnabled = relationNeutralEnabled
+				}
+			}
+
+			change[SLPlayer::relationFriendlyEnabled]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					val relationFriendlyEnabled = it.boolean()
+					data.relationFriendlyEnabled = relationFriendlyEnabled
+				}
+			}
+
+			change[SLPlayer::relationAllyEnabled]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					val relationAllyEnabled = it.boolean()
+					data.relationAllyEnabled = relationAllyEnabled
+				}
+			}
+
+			change[SLPlayer::relationNationEnabled]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					val relationNationEnabled = it.boolean()
+					data.relationNationEnabled = relationNationEnabled
+				}
+			}
+
+			change[SLPlayer::relationAiStationEnabled]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					val relationAiEnabled = it.boolean()
+					data.relationAiEnabled = relationAiEnabled
+				}
+			}
+
+			change[SLPlayer::relationNoneStationEnabled]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					val relationNoneEnabled = it.boolean()
+					data.relationNoneEnabled = relationNoneEnabled
+				}
+			}
+
+			change[SLPlayer::relationEnemyStationEnabled]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					val relationEnemyEnabled = it.boolean()
+					data.relationEnemyEnabled = relationEnemyEnabled
+				}
+			}
+
+			change[SLPlayer::relationUnfriendlyStationEnabled]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					val relationUnfriendlyEnabled = it.boolean()
+					data.relationUnfriendlyEnabled = relationUnfriendlyEnabled
+				}
+			}
+
+			change[SLPlayer::relationNeutralStationEnabled]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					val relationNeutralEnabled = it.boolean()
+					data.relationNeutralEnabled = relationNeutralEnabled
+				}
+			}
+
+			change[SLPlayer::relationFriendlyStationEnabled]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					val relationFriendlyEnabled = it.boolean()
+					data.relationFriendlyEnabled = relationFriendlyEnabled
+				}
+			}
+
+			change[SLPlayer::relationAllyStationEnabled]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					val relationAllyEnabled = it.boolean()
+					data.relationAllyEnabled = relationAllyEnabled
+				}
+			}
+
+			change[SLPlayer::relationNationStationEnabled]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					val relationNationEnabled = it.boolean()
+					data.relationNationEnabled = relationNationEnabled
+				}
+			}
+
 			change[SLPlayer::waypointsEnabled]?.let {
 				synced {
 					val data = PLAYER_DATA[id.uuid] ?: return@synced
@@ -280,6 +480,50 @@ abstract class AbstractPlayerCache : ManualCache() {
 				}
 			}
 
+			change[SLPlayer::hudIconStars]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					val hudIconStars = it.boolean()
+					data.hudIconStars = hudIconStars
+				}
+			}
+
+			change[SLPlayer::hudIconBeacons]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					val hudIconBeacons = it.boolean()
+					data.hudIconBeacons = hudIconBeacons
+				}
+			}
+
+			change[SLPlayer::hudIconStations]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					val hudIconStations = it.boolean()
+					data.hudIconStations = hudIconStations
+				}
+			}
+
+			change[SLPlayer::hudIconBookmarks]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					val hudIconBookmarks = it.boolean()
+					data.hudIconBookmarks = hudIconBookmarks
+				}
+			}
+
+			change[SLPlayer::showItemSearchItem]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					data.showItemSearchItem = it.boolean()
+				}
+			}
+
 			change[SLPlayer::bounty]?.let {
 				synced {
 					val data = PLAYER_DATA[id.uuid] ?: return@synced
@@ -293,6 +537,33 @@ abstract class AbstractPlayerCache : ManualCache() {
 					val data = PLAYER_DATA[id.uuid] ?: return@synced
 
 					data.blockedPlayerIDs = it.mappedSet { it.slPlayerId() }
+				}
+			}
+
+			change[SLPlayer::useAlternateDCCruise]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					val useAlternateDcCruise = it.boolean()
+					data.useAlternateDCCruise = useAlternateDcCruise
+				}
+			}
+
+			change[SLPlayer::enableAdditionalSounds]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					val enableAdditionalSounds = it.boolean()
+					data.enableAdditionalSounds = enableAdditionalSounds
+				}
+			}
+
+			change[SLPlayer::soundCruiseIndicator]?.let {
+				synced {
+					val data = PLAYER_DATA[id.uuid] ?: return@synced
+
+					val soundCruiseIndicator = it.int()
+					data.soundCruiseIndicator = soundCruiseIndicator
 				}
 			}
 		}
@@ -351,6 +622,9 @@ abstract class AbstractPlayerCache : ManualCache() {
 			bounty = data.bounty,
 			blockedPlayerIDs = data.blockedPlayerIDs,
 			contactsDistance = data.contactsDistance,
+			contactsMaxNameLength = data.contactsMaxNameLength,
+			contactsSort = data.contactsSort,
+			contactsColoring = data.contactsColoring,
 			contactsEnabled = data.contactsEnabled,
 			contactsStarships = data.contactsStarships,
 			lastStarshipEnabled = data.lastStarshipEnabled,
@@ -359,13 +633,37 @@ abstract class AbstractPlayerCache : ManualCache() {
 			beaconsEnabled = data.beaconsEnabled,
 			stationsEnabled = data.stationsEnabled,
 			bookmarksEnabled = data.bookmarksEnabled,
+			relationAiEnabled = data.relationAiEnabled,
+			relationNoneEnabled = data.relationNoneEnabled,
+			relationEnemyEnabled = data.relationEnemyEnabled,
+			relationUnfriendlyEnabled = data.relationUnfriendlyEnabled,
+			relationNeutralEnabled = data.relationNeutralEnabled,
+			relationFriendlyEnabled = data.relationFriendlyEnabled,
+			relationAllyEnabled = data.relationAllyEnabled,
+			relationNationEnabled = data.relationNationEnabled,
+			relationAiStationEnabled = data.relationAiEnabled,
+			relationNoneStationEnabled = data.relationNoneEnabled,
+			relationEnemyStationEnabled = data.relationEnemyEnabled,
+			relationUnfriendlyStationEnabled = data.relationUnfriendlyEnabled,
+			relationNeutralStationEnabled = data.relationNeutralEnabled,
+			relationFriendlyStationEnabled = data.relationFriendlyEnabled,
+			relationAllyStationEnabled = data.relationAllyEnabled,
+			relationNationStationEnabled = data.relationNationEnabled,
 			waypointsEnabled = data.waypointsEnabled,
 			compactWaypoints = data.compactWaypoints,
 			starshipsEnabled = data.starshipsEnabled,
 			advancedStarshipInfo = data.advancedStarshipInfo,
 			rotateCompass = data.rotateCompass,
 			hudPlanetsImage = data.hudPlanetsImage,
-			hudPlanetsSelector = data.hudPlanetsSelector
+			hudPlanetsSelector = data.hudPlanetsSelector,
+			hudIconStars = data.hudIconStars,
+			hudIconBeacons = data.hudIconBeacons,
+			hudIconStations = data.hudIconStations,
+			hudIconBookmarks = data.hudIconBookmarks,
+			showItemSearchItem = data.showItemSearchItem,
+			useAlternateDCCruise = data.useAlternateDCCruise,
+			enableAdditionalSounds = data.enableAdditionalSounds,
+			soundCruiseIndicator = data.soundCruiseIndicator
 		)
 	}
 

@@ -1,6 +1,5 @@
 package net.horizonsend.ion.server.features.bounties
 
-import net.horizonsend.ion.common.database.cache.BountyCache
 import net.horizonsend.ion.common.database.schema.misc.ClaimedBounty
 import net.horizonsend.ion.common.database.schema.misc.SLPlayer
 import net.horizonsend.ion.common.database.schema.misc.SLPlayerId
@@ -12,6 +11,7 @@ import net.horizonsend.ion.common.utils.text.template
 import net.horizonsend.ion.common.utils.text.toCreditComponent
 import net.horizonsend.ion.server.IonServer
 import net.horizonsend.ion.server.IonServerComponent
+import net.horizonsend.ion.server.features.cache.BountyCache
 import net.horizonsend.ion.server.features.cache.PlayerCache
 import net.horizonsend.ion.server.features.starship.control.controllers.player.PlayerController
 import net.horizonsend.ion.server.features.starship.damager.PlayerDamager
@@ -77,9 +77,17 @@ object Bounties : IonServerComponent() {
 
 	/** Checks if the hunter has an active bounty on the target **/
 	fun hasActive(hunter: SLPlayerId, target: SLPlayerId): Boolean {
-		val mostRecent = BountyCache[hunter, target] ?: return false
+		val mostRecent = BountyCache[hunter, target] ?: run {
+			log.info("${PlayerCache[hunter]} did not have a cached bounty")
+			return false
+		}
 
-		if (mostRecent.claimTime < lastActive) return false
+		if (mostRecent.claimTime < lastActive) {
+			log.info("${PlayerCache[hunter]}'s last bounty was expired")
+			return false
+		}
+
+		log.info("Bounty: $mostRecent")
 
 		return !mostRecent.completed
 	}

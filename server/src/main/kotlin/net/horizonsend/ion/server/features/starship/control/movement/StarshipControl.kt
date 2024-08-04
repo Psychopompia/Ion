@@ -6,6 +6,7 @@ import net.horizonsend.ion.common.utils.miscellaneous.d
 import net.horizonsend.ion.server.IonServerComponent
 import net.horizonsend.ion.server.features.nations.utils.getPing
 import net.horizonsend.ion.server.features.space.Space
+import net.horizonsend.ion.server.features.starship.StarshipType.BATTLECRUISER
 import net.horizonsend.ion.server.features.starship.StarshipType.PLATFORM
 import net.horizonsend.ion.server.features.starship.active.ActiveControlledStarship
 import net.horizonsend.ion.server.features.starship.active.ActiveStarships
@@ -64,6 +65,8 @@ object StarshipControl : IonServerComponent() {
 
 	private fun processDirectControl(starship: ActiveControlledStarship) {
 		val controller = starship.controller
+
+		if (starship.isTeleporting) return
 
 		if (starship.type == PLATFORM) return controller.userErrorAction("This ship type is not capable of moving.")
 
@@ -270,6 +273,9 @@ object StarshipControl : IonServerComponent() {
 			}
 			.firstOrNull()
 			?: return false
+
+		// Don't allow battlecruisers to enter planets
+		if (starship.type == BATTLECRUISER) return false
 
 		val border = planet.planetWorld?.worldBorder
 			?.takeIf { it.size < 60_000_000 } // don't use if it's the default, giant border

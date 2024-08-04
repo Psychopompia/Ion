@@ -31,6 +31,8 @@ data class ServerConfiguration(
 	val mobSpawns: Map<String, PlanetSpawnConfig> = mapOf(),
 	val dutyModeMonitorWebhook: String? = null,
 	val eventLoggerWebhook: String? = null,
+	val getPosMaxRange: Double = 600.0,
+	val nearMaxRange: Double = 1200.0,
 ) {
 	/**
 	 * @param baseAsteroidDensity: Roughly a base level of the number of asteroids per chunk
@@ -44,6 +46,7 @@ data class ServerConfiguration(
 		val baseAsteroidDensity: Double = 0.25,
 		val maxAsteroidSize: Double = 14.0,
 		val blockPalettes: ArrayList<Palette>,
+		val oreRatio: Double,
 		val features: List<AsteroidFeature>,
 		val wreckClasses: ArrayList<WreckClass>,
 		val wreckMultiplier: Double = 0.01
@@ -52,7 +55,6 @@ data class ServerConfiguration(
 		 * @param weight: Number of rolls for this Palette
 		 * @param materials: Map of Materials to their Weight
 		 * @param ores:  list of Palettes used for ore placement
-		 * @param oreRatio: Number of attempts to place an ore blob per chunk
 		 *
 		 * Each Palette is a set of materials, and their weights that might make up an asteroid. Asteroids may pick from a list of Palettes.
 		 */
@@ -60,8 +62,7 @@ data class ServerConfiguration(
 		data class Palette(
 			val weight: Int,
 			val materials: List<PaletteEntry>,
-			val ores: Set<Ore>,
-			val oreRatio: Double = 0.25
+			val ores: Set<Ore>
 		) {
 			@Serializable
 			data class PaletteEntry(
@@ -233,12 +234,12 @@ data class ServerConfiguration(
 			val weight: Int,
 			val type: String,
 			val namePool: Map<String, Int> = mapOf(),
-			val onHand: Gear? = null,
-			val offHand: Gear? = null,
-			val helmet: Gear? = null,
-			val chestPlate: Gear? = null,
-			val leggings: Gear? = null,
-			val boots: Gear? = null,
+			val onHand: DroppedItem? = null,
+			val offHand: DroppedItem? = null,
+			val helmet: DroppedItem? = null,
+			val chestPlate: DroppedItem? = null,
+			val leggings: DroppedItem? = null,
+			val boots: DroppedItem? = null,
 		) {
 			@Transient
 			val nameList: WeightedRandomList<String> = WeightedRandomList(namePool)
@@ -251,8 +252,9 @@ data class ServerConfiguration(
 		 * Not the end of the world, but could be improved upon
 		 **/
 		@Serializable
-		data class Gear(
+		data class DroppedItem(
 			val itemString: String,
+			val amount: Int = 1,
 			val dropChance: Float,
 		)
 
